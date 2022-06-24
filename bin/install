@@ -19,9 +19,12 @@ install() {
   local platform
   [ "Linux" = "$(uname)" ] && platform="linux" || platform="darwin"
 
+  OVERWRITE_ARCH=${ASDF_TERRAGRUNT_OVERWRITE_ARCH:-"false"}
   local arch
   machine=$(uname -m)
-  if [[ $machine == "arm64" ]] || [[ $machine == "aarch64" ]]; then
+  if [[ $OVERWRITE_ARCH != "false" ]]; then
+    arch="$OVERWRITE_ARCH"
+  elif [[ $machine == "arm64" ]] || [[ $machine == "aarch64" ]]; then
     arch="arm64"
   elif [[ $machine == *"386"* ]]; then
     arch="386"
