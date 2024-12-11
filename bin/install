@@ -46,7 +46,32 @@ install() {
     exit 1
   fi
 
+  if [[ "${ASDF_TERRAGRUNT_SKIP_CHECKSUM:-"false"}" != "true" ]]; then
+    local expected_checksum
+    expected_checksum=$(_sha256 "$bin_path" | awk '{print $1}')
+    local checksum
+    checksum="$(curl -sL "https://github.com/gruntwork-io/terragrunt/releases/download/v${version}/SHA256SUMS" | grep "terragrunt_${platform}_${arch}" | awk '{print $1}')"
+
+    if [ "$expected_checksum" != "$checksum" ]; then
+      echo "Checksum for terragrunt did not match"
+      echo "Expected: $checksum"
+      echo "Actual: $expected_checksum"
+      exit 1
+    fi
+  fi
+
   chmod +x "$bin_path"
+}
+
+_sha256() {
+  if command -v sha256sum >/dev/null; then
+    sha256sum "$1"
+  elif command -v shasum >/dev/null; then
+    shasum -a 256 "$1"
+  else
+    echo "Neither sha256sum nor shasum not found. Consider skipping checksum verification with ASDF_TERRAGRUNT_SKIP_CHECKSUM=true"
+    exit 1
+  fi
 }
 
 install "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH"
