@@ -2,31 +2,35 @@
 
 set -euo pipefail
 
-[ -z "${ASDF_INSTALL_TYPE+x}" ] && echo "ASDF_INSTALL_TYPE is required" && exit 1
-[ -z "${ASDF_INSTALL_VERSION+x}" ] && echo "ASDF_INSTALL_VERSION is required" && exit 1
-[ -z "${ASDF_INSTALL_PATH+x}" ] && echo "ASDF_INSTALL_PATH is required" && exit 1
+[[ -z "${ASDF_INSTALL_TYPE+x}" ]] && echo "ASDF_INSTALL_TYPE is required" && exit 1
+[[ -z "${ASDF_INSTALL_VERSION+x}" ]] && echo "ASDF_INSTALL_VERSION is required" && exit 1
+[[ -z "${ASDF_INSTALL_PATH+x}" ]] && echo "ASDF_INSTALL_PATH is required" && exit 1
 
 install() {
   local install_type=$1
-  [ "$install_type" != "version" ] && echo "install type, $install_type, is not supported" && exit 1
+  [[ "${install_type}" != "version" ]] && echo "install type, ${install_type}, is not supported" && exit 1
 
   local version=$2
   local install_path=$3
 
-  local bin_install_path="$install_path/bin"
+  local bin_install_path="${install_path}/bin"
   local bin_path="${bin_install_path}/terragrunt"
 
   local platform
-  [ "Linux" = "$(uname)" ] && platform="linux" || platform="darwin"
+  platform="$(uname | tr '[:upper:]' '[:lower:]')"
+  if [[ "${platform}" != "linux" && "${platform}" != "darwin" ]]; then
+    echo "Unsupported platform. Only Linux and MacOS are supported by this plugin."
+    exit 1
+  fi
 
   OVERWRITE_ARCH=${ASDF_TERRAGRUNT_OVERWRITE_ARCH:-"false"}
   local arch
-  machine=$(uname -m)
-  if [[ $OVERWRITE_ARCH != "false" ]]; then
-    arch="$OVERWRITE_ARCH"
-  elif [[ $machine == "arm64" ]] || [[ $machine == "aarch64" ]]; then
+  machine="$(uname -m)"
+  if [[ "${OVERWRITE_ARCH}" != "false" ]]; then
+    arch="${OVERWRITE_ARCH}"
+  elif [[ "${machine}" == "arm64" ]] || [[ "${machine}" == "aarch64" ]]; then
     arch="arm64"
-  elif [[ $machine == *"386"* ]]; then
+  elif [[ "${machine}" == *"386"* ]]; then
     arch="386"
   else
     arch="amd64"
@@ -39,28 +43,30 @@ install() {
 
   echo "Downloading terragrunt from ${download_url}"
 
-  STATUSCODE=$(curl -q --write-out "%{http_code}" -Lo "$bin_path" -C - "$download_url")
+  STATUSCODE=$(curl -q --write-out "%{http_code}" -Lo "${bin_path}" -C - "${download_url}")
 
-  if test "${STATUSCODE}" -ne 200; then
+  if [[ "${STATUSCODE}" != "200" ]]; then
     echo "Binary for version '${version}' was not found or could not be retrieved."
+    rm -f "${bin_path}"
     exit 1
   fi
 
   if [[ "${ASDF_TERRAGRUNT_SKIP_CHECKSUM:-"false"}" != "true" ]]; then
     local expected_checksum
-    expected_checksum=$(_sha256 "$bin_path" | awk '{print $1}')
+    expected_checksum=$(_sha256 "${bin_path}" | awk '{print $1}')
     local checksum
     checksum="$(curl -sL "https://github.com/gruntwork-io/terragrunt/releases/download/v${version}/SHA256SUMS" | grep "terragrunt_${platform}_${arch}" | awk '{print $1}')"
 
-    if [ "$expected_checksum" != "$checksum" ]; then
+    if [[ "${expected_checksum}" != "${checksum}" ]]; then
       echo "Checksum for terragrunt did not match"
-      echo "Expected: $checksum"
-      echo "Actual: $expected_checksum"
+      echo "Expected: ${checksum}"
+      echo "Actual: ${expected_checksum}"
+      rm -f "${bin_path}"
       exit 1
     fi
   fi
 
-  chmod +x "$bin_path"
+  chmod +x "${bin_path}"
 }
 
 _sha256() {
@@ -69,9 +75,9 @@ _sha256() {
   elif command -v shasum >/dev/null; then
     shasum -a 256 "$1"
   else
-    echo "Neither sha256sum nor shasum not found. Consider skipping checksum verification with ASDF_TERRAGRUNT_SKIP_CHECKSUM=true"
+    echo "Neither sha256sum nor shasum not found. Consider skipping checksum verification with ASDF_TERRAGRUNT_SKIP_CHECKSUM=true."
     exit 1
   fi
 }
 
-install "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH"
+install "${ASDF_INSTALL_TYPE}" "${ASDF_INSTALL_VERSION}" "${ASDF_INSTALL_PATH}"
