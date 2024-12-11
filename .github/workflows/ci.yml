@@ -8,20 +8,13 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
-
       matrix:
         os:
           - ubuntu-latest
           - macos-latest
-
     steps:
-      - name: asdf_plugin_test
-        uses: asdf-vm/actions/plugin-test@v1.0.0
+      - uses: asdf-vm/actions/plugin-test@v3
         with:
           command: "terragrunt --version"
-        env:
-          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided
-          ACTIONS_ALLOW_UNSECURE_COMMANDS: true # enabling until there's a better solution
